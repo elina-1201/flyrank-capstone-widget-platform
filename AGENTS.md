@@ -19,3 +19,8 @@ Fill in **Where AI was wrong** and **What the human changed** only when your sug
 - One entry per working session is enough; add more only for something notable.
 - If you did no meaningful work, do not add an entry.
 - If you don't know what AI got wrong or what the human changed, ask in chat and log the answer in your own words.
+
+## Comments rules
+- Don't over-explain — skip comments for self-explanatory code.
+- Explain the *why*, not the *what*.
+- For placeholders, comment directly above them in UPPER CASE stating what to paste there, and flag it in the chat.
