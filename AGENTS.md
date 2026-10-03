@@ -4,6 +4,9 @@
 - Work only inside this folder and its subfolders. Do not read or modify files outside it.
 - Follow existing NestJS conventions: modules, controllers, services, DTOs, providers.
 
+## Design
+- Before implementing features or changing the data model, API routes, or tenancy logic, read `DESIGN.md` and follow it — it is the source of truth for schema, API contracts, and embed flow.
+
 ## Log your work in `BUILDLOG.md`
 After making a meaningful change, append a concise entry to `BUILDLOG.md` at the root of this folder.
 

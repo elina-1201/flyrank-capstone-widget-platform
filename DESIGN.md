@@ -23,20 +23,20 @@ sequenceDiagram
     API-->>P: 201
 ```
 
-## Data models (fields, tenancy, indexes)
+## Data models (fields, ownership, indexes)
 
 > All types are PostgreSQL. `timestamptz` = UTC timestamp, `jsonb` = schema-flexible JSON.
-> Tenancy rule: every widget and submission query is filtered by `tenant_id`
-> (submissions join `widgets`); a tenant can never read another tenant's rows.
+> Ownership rule: every widget and submission query is filtered by `owner_id`
+> (submissions join `widgets`); an owner can never read another owner's rows.
 
-### tenants — the widget owner (customer)
+### owners — the widget owner (customer)
 
 | Column | Type | Constraints / notes |
 | --- | --- | --- |
 | `id` | `uuid` | PK, default `gen_random_uuid()` |
 | `name` | `text` | NOT NULL |
-| `email` | `citext` | NOT NULL, UNIQUE — login identity |
-| `password_hash` | `text` | NOT NULL — bcrypt/argon2 hash; plaintext is never stored (secrets rule) |
+| `email` | `text` | NOT NULL, UNIQUE — login identity (lowercased in app code) |
+| `password_hash` | `text` | NOT NULL — scrypt hash; plaintext is never stored (secrets rule) |
 | `created_at` | `timestamptz` | NOT NULL, default `now()` |
 
 ### widgets — one row per embeddable widget
@@ -44,7 +44,7 @@ sequenceDiagram
 | Column | Type | Constraints / notes |
 | --- | --- | --- |
 | `id` | `uuid` | PK, default `gen_random_uuid()` |
-| `tenant_id` | `uuid` | FK → `tenants.id`, NOT NULL, indexed — tenancy isolation |
+| `owner_id` | `uuid` | FK → `owners.id`, NOT NULL, indexed — ownership isolation |
 | `public_id` | `varchar(12)` | NOT NULL, UNIQUE — unguessable id in `<script src="…/widget.js?id=…">` (nanoid) |
 | `type` | `text` | NOT NULL, `CHECK (type IN ('signup_form','cta','popover'))` |
 | `title` | `text` | NOT NULL |
@@ -91,12 +91,12 @@ sequenceDiagram
 > + an alert, and it never blocks the submission response (safe side effect; shared req:
 > background job with retries + failure alert).
 
-### Indexes & tenancy summary
+### Indexes & ownership summary
 
 | Index | Why |
 | --- | --- |
-| `tenants.email` (UNIQUE) | login lookup |
-| `widgets.tenant_id` | tenant-scoped widget CRUD |
+| `owners.email` (UNIQUE) | login lookup |
+| `widgets.owner_id` | owner-scoped widget CRUD |
 | `widgets.public_id` (UNIQUE) | config lookup by the script URL id |
 | `submissions.idempotency_key` (UNIQUE) | constraint, not optional — dedup (retried action happens once) |
 | `submissions (widget_id, submitted_at)` | per-widget stats + counts over time; leftmost prefix covers `widget_id` alone |
@@ -154,12 +154,15 @@ Three paths, matching the architecture: **public** (no auth, CORS-open), **admin
 
 ### Admin (authenticated)
 
-#### `POST /api/v1/auth/register` — create tenant
+#### `POST /api/v1/auth/register` — create owner
+
+> No token is returned from register (it would leak account existence). Clients
+> call `POST /api/v1/auth/login` to obtain a token.
 
 | Case | Status | Body |
 | --- | --- | --- |
-| Success | `201` | `{ tenant: { id, name, email }, token }` |
-| Email taken | `409` | `{ error: { code: "EMAIL_TAKEN", message: "…" } }` |
+| Success (new) | `201` | `{ status: "created" }` |
+| Email already registered | `201` | `{ status: "created" }` — silent no-op (anti-enumeration: never reveal that an email exists) |
 | Invalid | `400` | `{ error: { code: "VALIDATION_FAILED", message: "…" } }` |
 
 #### `POST /api/v1/auth/login` — get token
@@ -189,7 +192,7 @@ Three paths, matching the architecture: **public** (no auth, CORS-open), **admin
 | Case | Status | Body |
 | --- | --- | --- |
 | Success | `200` | `{ widget }` |
-| Not yours / missing | `404` | `{ error: { code: "WIDGET_NOT_FOUND", message: "…" } }` — tenant-scoped, existence not leaked |
+| Not yours / missing | `404` | `{ error: { code: "WIDGET_NOT_FOUND", message: "…" } }` — owner-scoped, existence not leaked |
 | No / invalid token | `401` | `{ error: { code: "UNAUTHORIZED", message: "…" } }` |
 
 #### `PATCH /api/v1/widgets/:id` — update one
