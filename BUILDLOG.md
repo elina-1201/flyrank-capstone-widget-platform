@@ -30,3 +30,10 @@
 
 **What the human changed**
 - Renamed `OwnerService.register` to `OwnerService.create` (now takes a pre-hashed `passwordHash`) and moved `hashPassword` / `verifyPassword` from `OwnerService` into `AuthService`, so credential crypto lives with the auth workflow and `OwnerService` stays pure persistence.
+
+## 2026-10-05 — Root API index + health check
+
+**Where AI helped**
+- Refactored `GET /` from `Hello World!` to return `{ name: "Embedded widget platform", version: "1.0", endpoints: [...] }`, listing the routes that actually exist.
+- Added `GET /health` which pings Postgres (`SELECT 1` via TypeORM's `DataSource`) and returns `{ status: "ok", db: "ok" }`, or `503 DB_UNAVAILABLE` when the database is unreachable.
+- Added an "Keep the API index current" rule to `AGENTS.md` (bump `APP_VERSION` / update `ENDPOINTS` after major updates) and updated the controller spec for the new methods.

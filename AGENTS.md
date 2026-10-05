@@ -7,6 +7,10 @@
 ## Design
 - Before implementing features or changing the data model, API routes, or tenancy logic, read `DESIGN.md` and follow it — it is the source of truth for schema, API contracts, and embed flow.
 
+## Keep the API index current
+- The root `GET /` returns `{ name, version, endpoints }` from `src/app.service.ts` (`APP_VERSION` and the `ENDPOINTS` array).
+- After a major update, bump `APP_VERSION` and add/remove entries in `ENDPOINTS` to match the routes that actually exist.
+
 ## Log your work in `BUILDLOG.md`
 After making a meaningful change, append a concise entry to `BUILDLOG.md` at the root of this folder.
 
