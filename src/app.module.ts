@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { OwnerModule } from './owner/owner.module';
+import { WidgetModule } from './widgets/widget.module';
 
 @Module({
   imports: [
@@ -12,8 +13,9 @@ import { OwnerModule } from './owner/owner.module';
     DatabaseModule,
     OwnerModule,
     AuthModule,
+    WidgetModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

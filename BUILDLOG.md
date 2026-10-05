@@ -37,3 +37,15 @@
 - Refactored `GET /` from `Hello World!` to return `{ name: "Embedded widget platform", version: "1.0", endpoints: [...] }`, listing the routes that actually exist.
 - Added `GET /health` which pings Postgres (`SELECT 1` via TypeORM's `DataSource`) and returns `{ status: "ok", db: "ok" }`, or `503 DB_UNAVAILABLE` when the database is unreachable.
 - Added an "Keep the API index current" rule to `AGENTS.md` (bump `APP_VERSION` / update `ENDPOINTS` after major updates) and updated the controller spec for the new methods.
+
+## 2026-10-05 — Widgets (admin) CRUD
+
+**Where AI helped**
+- Added the `Widget` entity (`widgets` table — `public_id` nanoid UNIQUE, `type` CHECK, `fields`/`display_options` jsonb, `owner_id` FK → `owners.id`) with `WidgetModule` / `WidgetService` / `WidgetController`.
+- Implemented owner-scoped CRUD behind `JwtAuthGuard` + `@CurrentOwner()`: `POST /api/v1/widgets` (create + embed snippet), `GET /api/v1/widgets`, and `GET` / `PATCH` / `DELETE /api/v1/widgets/:id` — all owner-scoped via a shared `getOwned` helper that returns `404 WIDGET_NOT_FOUND` so non-owned widgets don't leak existence.
+- Added `nanoid@^3` (v3, not ESM-only v5, to fit the CommonJS build) and `PUBLIC_BASE_URL` for the snippet origin (relative `/widget.js` fallback until the public embed section serves it).
+- Updated the root API index and checked off the section in PLAN.md (also corrected bullet-1 `tenant_id` → `owner_id` to match DESIGN.md).
+
+**What the human changed**
+- `UpdateWidgetDto` → `PartialType(CreateWidgetDto)` via `@nestjs/mapped-types` (new dependency) instead of a hand-written all-optional DTO.
+- `WidgetService.update()` → `this.widgets.merge(widget, dto)` instead of explicit per-field guards.

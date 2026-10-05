@@ -23,6 +23,31 @@ const ENDPOINTS: Endpoint[] = [
     description: 'Create an owner account',
   },
   { method: 'POST', path: '/api/v1/auth/login', description: 'Get a JWT' },
+  {
+    method: 'POST',
+    path: '/api/v1/widgets',
+    description: 'Create a widget (returns embed snippet)',
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/widgets',
+    description: "List the owner's widgets",
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/widgets/:id',
+    description: 'Read one widget (owner-scoped)',
+  },
+  {
+    method: 'PATCH',
+    path: '/api/v1/widgets/:id',
+    description: 'Update one widget (owner-scoped)',
+  },
+  {
+    method: 'DELETE',
+    path: '/api/v1/widgets/:id',
+    description: 'Delete one widget (owner-scoped)',
+  },
 ];
 
 @Injectable()

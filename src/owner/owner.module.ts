@@ -4,8 +4,8 @@ import { Owner } from './owner.entity';
 import { OwnerService } from './owner.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Owner])],
-    providers: [OwnerService],
-    exports: [OwnerService],
+  imports: [TypeOrmModule.forFeature([Owner])],
+  providers: [OwnerService],
+  exports: [OwnerService],
 })
-export class OwnerModule { }
+export class OwnerModule {}
