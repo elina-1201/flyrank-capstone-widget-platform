@@ -2,7 +2,7 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 export const APP_NAME = 'Embedded widget platform';
-export const APP_VERSION = '1.0';
+export const APP_VERSION = '1.1';
 
 export interface Endpoint {
   method: string;
@@ -47,6 +47,16 @@ const ENDPOINTS: Endpoint[] = [
     method: 'DELETE',
     path: '/api/v1/widgets/:id',
     description: 'Delete one widget (owner-scoped)',
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/public/widgets/:publicId/config',
+    description: 'Public widget config for the embed bundle',
+  },
+  {
+    method: 'GET',
+    path: '/widget.v<version>.js',
+    description: 'Versioned embed bundle (static file under public/)',
   },
 ];
 

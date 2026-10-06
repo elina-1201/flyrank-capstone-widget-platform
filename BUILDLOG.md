@@ -49,3 +49,19 @@
 **What the human changed**
 - `UpdateWidgetDto` → `PartialType(CreateWidgetDto)` via `@nestjs/mapped-types` (new dependency) instead of a hand-written all-optional DTO.
 - `WidgetService.update()` → `this.widgets.merge(widget, dto)` instead of explicit per-field guards.
+
+## 2026-10-06 — Public embed flow (config + versioned bundle + scoped CORS)
+
+**Where AI helped**
+- Added `PublicModule` / `PublicController` with `GET /api/v1/public/widgets/:publicId/config` (`Cache-Control: public, max-age=60`, `404 WIDGET_NOT_FOUND`) and `GET /widget.v1.js` (`Cache-Control: immutable`, `application/javascript`).
+- `WidgetService` gained `findByPublicId` (public-id lookup) and the embed snippet now points at `/widget.v1.js?id=…` (versioned).
+- The bundle renders fields/title/button into the script's parent div, POSTs to `/api/v1/public/submissions` with a provisional honeypot + `crypto.randomUUID()` idempotency key, and escapes all rendered values.
+- CORS is scoped (not global): `cors` middleware on `/api/v1/public` and `/widget.v1.js` only; admin routes stay same-origin. Added `cors` + `@types/cors` as direct deps.
+
+## 2026-10-06 — Versioned bundle served from files (not a hardcoded route)
+
+**Where AI helped**
+- Moved the bundle out of a TS constant into `public/widget.v1.js` and serve the `public/` dir statically via `useStaticAssets` (`Cache-Control: public, max-age=31536000, immutable`).
+- Bundle CORS now matches `/^\/widget\.v\d+\.js$/` instead of the hardcoded `/widget.v1.js`; adding a version means adding a `widget.vN.js` file with no route code change.
+- Snippet src reads `WIDGET_BUNDLE_VERSION` (default `v1`, added to `.env.example`) so new widgets embed the configured version while old snippets keep serving their original file.
+- Removed `PublicController.bundle()` and deleted `src/public/widget-bundle.ts`.

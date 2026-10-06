@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { OwnerModule } from './owner/owner.module';
+import { PublicModule } from './public/public.module';
 import { WidgetModule } from './widgets/widget.module';
 
 @Module({
@@ -14,6 +15,7 @@ import { WidgetModule } from './widgets/widget.module';
     OwnerModule,
     AuthModule,
     WidgetModule,
+    PublicModule,
   ],
   controllers: [AppController],
   providers: [AppService],
