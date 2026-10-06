@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { nanoid } from 'nanoid';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { CreateWidgetDto } from './dto/create-widget.dto';
 import { UpdateWidgetDto } from './dto/update-widget.dto';
 import { Widget } from './widget.entity';
@@ -13,7 +13,7 @@ export class WidgetService {
     @InjectRepository(Widget)
     private readonly widgetRepo: Repository<Widget>,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
 
   async create(ownerId: string, dto: CreateWidgetDto) {
     const widget = this.widgetRepo.create({
@@ -60,18 +60,22 @@ export class WidgetService {
     await this.widgetRepo.remove(widget);
   }
 
-  async findByPublicId(publicId: string): Promise<Widget> {
-    const widget = await this.widgetRepo.findOne({ where: { publicId } });
-    if (!widget) {
-      throw new NotFoundException({
-        error: { code: 'WIDGET_NOT_FOUND', message: 'widget not found' },
-      });
-    }
-    return widget;
+  findByPublicId(publicId: string): Promise<Widget> {
+    return this.findOneOrThrow({ publicId });
   }
 
-  private async getOwned(ownerId: string, id: string): Promise<Widget> {
-    const widget = await this.widgetRepo.findOne({ where: { id, ownerId } });
+  findById(id: string): Promise<Widget> {
+    return this.findOneOrThrow({ id });
+  }
+
+  private getOwned(ownerId: string, id: string): Promise<Widget> {
+    return this.findOneOrThrow({ id, ownerId });
+  }
+
+  private async findOneOrThrow(
+    where: FindOptionsWhere<Widget>,
+  ): Promise<Widget> {
+    const widget = await this.widgetRepo.findOne({ where });
     if (!widget) {
       throw new NotFoundException({
         error: { code: 'WIDGET_NOT_FOUND', message: 'widget not found' },

@@ -65,3 +65,18 @@
 - Bundle CORS now matches `/^\/widget\.v\d+\.js$/` instead of the hardcoded `/widget.v1.js`; adding a version means adding a `widget.vN.js` file with no route code change.
 - Snippet src reads `WIDGET_BUNDLE_VERSION` (default `v1`, added to `.env.example`) so new widgets embed the configured version while old snippets keep serving their original file.
 - Removed `PublicController.bundle()` and deleted `src/public/widget-bundle.ts`.
+
+## 2026-10-06 — Submissions (public) — store flow, rate limit, geo enrich
+
+**Where AI helped**
+- Added the `Submission` entity (`submissions` table: `idempotency_key` uuid UNIQUE, `payload` jsonb, `ip_address` inet, `user_agent`/`country_code`/`region`/`city`/`geo_provider`, `submitted_at`) and `SubmissionsModule`.
+- Implemented `POST /api/v1/public/submissions` end-to-end: `CreateSubmissionDto` → payload size guard (`413`) → widget lookup (`404`) → honeypot drop → Zod validation against `widget.fields` (`400`) → `RateLimitService` (`429`) → spam heuristic → `GeoService` → idempotent store (`23505` returns the existing row) → `201`.
+- Added `zod`; `RateLimitService` (in-memory fixed-window: 10/min per IP, 100/min per widget, periodic sweep) and `GeoService` (ip-api.com → ipapi.co fallback, short timeout, failures leave geo NULL).
+- Updated the root API index (`POST /api/v1/public/submissions`, `APP_VERSION` → 1.2) and removed the "provisional field names" comment from `widget.v1.js`.
+
+**Where AI was wrong**
+- Used NestJS's non-existent `TooManyRequestsException`; fixed to `new HttpException({ error }, HttpStatus.TOO_MANY_REQUESTS)`.
+- Used Zod v4's non-existent `issue.received`; fixed to `issue.input` (with `too_small` covering empty strings).
+
+**What the human changed**
+- Switched payload validation from the hand-written imperative check to a dynamic **Zod** schema built per-widget from `widget.fields` (`z.string().min(1)` for required fields, `z.string().optional()` otherwise); unknown keys are stripped by `z.object`'s default mode.

@@ -74,8 +74,6 @@
             });
             var hp = form.elements['__hp'];
             var idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : '';
-            // REQUEST CONTRACT FINALIZED IN THE SUBMISSIONS SECTION: honeypot/idempotencyKey field
-            // names are provisional until POST /api/v1/public/submissions lands.
             var body = {
                 widgetId: widgetId,
                 idempotencyKey: idempotencyKey,

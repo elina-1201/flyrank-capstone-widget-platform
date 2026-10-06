@@ -2,7 +2,7 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 export const APP_NAME = 'Embedded widget platform';
-export const APP_VERSION = '1.1';
+export const APP_VERSION = '1.2';
 
 export interface Endpoint {
   method: string;
@@ -54,6 +54,11 @@ const ENDPOINTS: Endpoint[] = [
     description: 'Public widget config for the embed bundle',
   },
   {
+    method: 'POST',
+    path: '/api/v1/public/submissions',
+    description: 'Store a visitor submission',
+  },
+  {
     method: 'GET',
     path: '/widget.v<version>.js',
     description: 'Versioned embed bundle (static file under public/)',
@@ -62,7 +67,7 @@ const ENDPOINTS: Endpoint[] = [
 
 @Injectable()
 export class AppService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly dataSource: DataSource) { }
 
   getInfo() {
     return {

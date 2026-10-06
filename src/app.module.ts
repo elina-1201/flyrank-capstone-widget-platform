@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { OwnerModule } from './owner/owner.module';
 import { PublicModule } from './public/public.module';
+import { SubmissionsModule } from './submissions/submissions.module';
 import { WidgetModule } from './widgets/widget.module';
 
 @Module({
@@ -16,8 +17,9 @@ import { WidgetModule } from './widgets/widget.module';
     AuthModule,
     WidgetModule,
     PublicModule,
+    SubmissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
