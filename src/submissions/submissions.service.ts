@@ -3,13 +3,16 @@ import {
     Injectable,
     PayloadTooLargeException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { z } from 'zod';
+import { Owner } from '../owner/owner.entity';
+import { Widget } from '../widgets/widget.entity';
 import { WidgetService } from '../widgets/widget.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { GeoService } from './geo.service';
 import { RateLimitService } from './rate-limit.service';
+import { SubmissionEvent } from './submission-event.entity';
 import { Submission } from './submission.entity';
 
 const MAX_PAYLOAD_BYTES = 10 * 1024;
@@ -19,6 +22,8 @@ export class SubmissionsService {
     constructor(
         @InjectRepository(Submission)
         private readonly submissionRepo: Repository<Submission>,
+        @InjectDataSource()
+        private readonly dataSource: DataSource,
         private readonly widgetService: WidgetService,
         private readonly rateLimitService: RateLimitService,
         private readonly geoService: GeoService,
@@ -62,7 +67,22 @@ export class SubmissionsService {
         });
 
         try {
-            const saved = await this.submissionRepo.save(submission);
+            const saved = await this.dataSource.transaction(async (manager) => {
+                const savedSubmission = await manager.save(submission);
+                const owner = await manager.findOne(Owner, {
+                    where: { id: widget.ownerId },
+                });
+                const events = this.buildSubmissionEvents(
+                    widget,
+                    savedSubmission.id,
+                    payload,
+                    owner?.email ?? '',
+                );
+                if (events.length > 0) {
+                    await manager.save(SubmissionEvent, events);
+                }
+                return savedSubmission;
+            });
             return { id: saved.id, status: 'stored' };
         } catch (error) {
             if (isUniqueViolation(error)) {
@@ -76,6 +96,47 @@ export class SubmissionsService {
             }
             throw error;
         }
+    }
+
+    private buildSubmissionEvents(
+        widget: Widget,
+        submissionId: string,
+        payload: Record<string, unknown>,
+        ownerEmail: string,
+    ): DeepPartial<SubmissionEvent>[] {
+        const events: DeepPartial<SubmissionEvent>[] = [];
+
+        // Owner notification — always, unless the owner lookup came back empty.
+        if (ownerEmail) {
+            events.push({
+                submissionId,
+                type: 'owner_notification',
+                payload: {
+                    to: ownerEmail,
+                    subject: `New lead on "${widget.title}"`,
+                    body: JSON.stringify(payload),
+                },
+                nextAttemptAt: new Date(),
+            });
+        }
+
+        // Confirmation email — only when the visitor left an email.
+        const emailField = widget.fields.find((field) => field.type === 'email');
+        const email = emailField ? payload[emailField.name] : undefined;
+        if (typeof email === 'string' && email.trim().length > 0) {
+            events.push({
+                submissionId,
+                type: 'confirmation_email',
+                payload: {
+                    to: email,
+                    subject: 'Thanks for your interest',
+                    body: 'We received your submission.',
+                },
+                nextAttemptAt: new Date(),
+            });
+        }
+
+        return events;
     }
 
     private assertPayloadSize(payload: Record<string, unknown>): void {

@@ -80,3 +80,16 @@
 
 **What the human changed**
 - Switched payload validation from the hand-written imperative check to a dynamic **Zod** schema built per-widget from `widget.fields` (`z.string().min(1)` for required fields, `z.string().optional()` otherwise); unknown keys are stripped by `z.object`'s default mode.
+
+## 2026-10-07 — SubmissionEvent outbox (entity + transactional enqueue)
+
+**Where AI helped**
+- Added the `SubmissionEvent` entity (`submission_events`): bigint identity `id`, `submission_id` FK (indexed), `type`/`status` literal unions, `payload` jsonb, `attempts`, `next_attempt_at`, `last_error`, `created_at`, and a poll index on `(status, next_attempt_at)`; registered it in `SubmissionsModule`.
+- Injected `DataSource` into `SubmissionsService` and wrapped the submission insert + event insert in ONE transaction (duplicate `idempotencyKey` rolls back → no duplicate event). `buildSubmissionEvents` enqueues a `confirmation_email` event when the widget has an `email` field; `webhook` is an UPPER-CASE placeholder pending a webhook URL config.
+
+**Where AI was wrong**
+- First pass followed PLAN.md's stale spec (uuid id, `widget_id`/`owner_id`, `processing`/`dead` statuses, `available_at`) and then dropped `payload` to match DESIGN.md; the human restored `payload` plus the poll index.
+- Logged to BUILDLOG before the bulletpoint was complete; the human asked to hold it until now.
+
+**What the human changed**
+- Pinned the schema to DESIGN.md (bigint identity, `submission_id` only, `pending`/`sent`/`failed`, `next_attempt_at`) then overrode it on two points: `payload` jsonb is genuinely required and the `(status, next_attempt_at)` poll index must exist.

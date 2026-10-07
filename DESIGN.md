@@ -80,7 +80,8 @@ sequenceDiagram
 | --- | --- | --- |
 | `id` | `bigint` | PK (identity) |
 | `submission_id` | `uuid` | FK → `submissions.id`, NOT NULL, indexed |
-| `type` | `text` | NOT NULL — `'confirmation_email'` / `'webhook'` |
+| `type` | `text` | NOT NULL — `'confirmation_email'` / `'owner_notification'` / `'webhook'` |
+| `payload` | `jsonb` | NOT NULL — self-contained dispatch data: `{ to, subject, body }` (webhook: `{ url, body }`) |
 | `status` | `text` | NOT NULL, default `'pending'` — `'pending'` / `'sent'` / `'failed'` |
 | `attempts` | `int` | NOT NULL, default `0` |
 | `next_attempt_at` | `timestamptz` | NOT NULL — worker pickup / retry schedule |
@@ -100,6 +101,7 @@ sequenceDiagram
 | `widgets.public_id` (UNIQUE) | config lookup by the script URL id |
 | `submissions.idempotency_key` (UNIQUE) | constraint, not optional — dedup (retried action happens once) |
 | `submissions (widget_id, submitted_at)` | per-widget stats + counts over time; leftmost prefix covers `widget_id` alone |
+| `submission_events (status, next_attempt_at)` | worker poll: `WHERE status='pending' AND next_attempt_at <= now()` |
 
 > Rate-limit counters (per IP and per widget) are **ephemeral** — kept in an in-memory or
 > Redis store with a TTL, not in these tables. Persisting every rejected burst would itself
