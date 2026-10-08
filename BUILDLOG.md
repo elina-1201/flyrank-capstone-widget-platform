@@ -93,3 +93,19 @@
 
 **What the human changed**
 - Pinned the schema to DESIGN.md (bigint identity, `submission_id` only, `pending`/`sent`/`failed`, `next_attempt_at`) then overrode it on two points: `payload` jsonb is genuinely required and the `(status, next_attempt_at)` poll index must exist.
+
+## 2026-10-08 — Outbox worker (cron + retry/backoff + mailpit notifier)
+
+**Where AI helped**
+- Added `nodemailer` (v10) + `@nestjs/schedule` (v12) and `ScheduleModule.forRoot()` to `AppModule` so `@Cron` works.
+- Defined the `Notifier` interface + `NOTIFIER` injection token, and `MailpitNotifier` (nodemailer → `SMTP_HOST`/`SMTP_PORT`, `from` = `SMTP_FROM`, plain SMTP for Mailpit).
+- Added a `mailpit` service to `docker-compose.yml` (SMTP 1025, UI 8025, loopback-bound) and `SMTP_HOST`/`SMTP_PORT`/`SMTP_FROM` to `.env.example`.
+- Created `OutboxWorker` (`@Cron` every 10s): claims `pending` events with `FOR UPDATE SKIP LOCKED` in one transaction, dispatches via `Notifier`, marks `sent` on success; on throw: `attempts++`, `last_error`, exponential backoff on `next_attempt_at` (10s base, 5min cap), `failed` after 5.
+- Registered `OutboxWorker` + `{ provide: NOTIFIER, useClass: MailpitNotifier }` in `SubmissionsModule`.
+
+**Where AI was wrong**
+- Claimed `@types/nodemailer` was needed; nodemailer v10 ships its own `.d.ts`, so no extra package.
+- `Notifier` had to be imported with `import type` (TS1272 under `isolatedModules` + `emitDecoratorMetadata`).
+
+**What the human changed**
+- Corrected the `@types/nodemailer` mistake (package never installed).

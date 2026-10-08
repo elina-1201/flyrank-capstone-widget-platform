@@ -11,6 +11,8 @@ export interface GeoResult {
 
 @Injectable()
 export class GeoService {
+    // Two free-tier providers: if ip-api.com fails (rate limit, downtime,
+    // or a rejected IP), fall back to ipapi.co before giving up.
     async enrich(ip: string): Promise<GeoResult | null> {
         const fromIpApi = await this.tryIpApi(ip);
         if (fromIpApi) {

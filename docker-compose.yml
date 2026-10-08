@@ -13,5 +13,15 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: embedded-widget-mailpit
+    restart: unless-stopped
+    ports:
+      # SMTP — the app's nodemailer transport.
+      - "127.0.0.1:1025:1025"
+      # Web UI — read caught mail at http://localhost:8025.
+      - "127.0.0.1:8025:8025"
+
 volumes:
   pgdata:
