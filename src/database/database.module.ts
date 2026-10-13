@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -11,17 +12,20 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         if (!databaseUrl) {
           throw new Error(
             'Missing required environment variable "DATABASE_URL". ' +
-              'Add it to .env (see .env.example).',
+            'Add it to .env (see .env.example).',
           );
         }
         return {
           type: 'postgres',
           url: databaseUrl,
           autoLoadEntities: true,
-          synchronize: config.get<string>('NODE_ENV') !== 'production',
+          // Schema is owned by versioned migrations; apply pending ones on boot.
+          synchronize: false,
+          migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
+          migrationsRun: true,
         };
       },
     }),
   ],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }

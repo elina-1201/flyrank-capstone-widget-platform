@@ -109,3 +109,15 @@
 
 **What the human changed**
 - Corrected the `@types/nodemailer` mistake (package never installed).
+
+## 2026-10-13 — Schema as migrations (replace `synchronize`)
+
+**Where AI helped**
+- Added `src/database/data-source.ts` (loads `.env` itself via `dotenv/config`, lists the four entities, `migrations` glob for both `ts-node` and `dist`) and `typeorm` / `migration:generate` / `migration:run` / `migration:revert` scripts; installed `dotenv` as a dev dep.
+- Generated `Init1791887088265` against an empty schema and verified it contains every PLAN.md-mandated item (unique keys, `widgets.type` CHECK, all three CASCADE FKs + indexes, `submissions.ip_address` inet, `submission_events.id` bigint identity).
+- Switched `DatabaseModule` to `synchronize: false` + `migrationsRun: true`, so `pnpm start:dev` still builds the schema on boot (verified from a wiped schema); confirmed `migration:run` / `revert` round-trip and that migrations compile into `dist/`.
+- Documented the workflow in README and checked off the PLAN.md section.
+
+**Where AI was wrong**
+- Initially assumed the `typeorm` `^1.1.1` dependency range was "bogus" per the PLAN.md preflight note; it resolves fine and ships the CLI, so no pin was needed.
+
