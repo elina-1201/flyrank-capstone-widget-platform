@@ -2,7 +2,7 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 export const APP_NAME = 'Embedded widget platform';
-export const APP_VERSION = '1.2';
+export const APP_VERSION = '1.3';
 
 export interface Endpoint {
   method: string;
@@ -57,6 +57,16 @@ const ENDPOINTS: Endpoint[] = [
     method: 'POST',
     path: '/api/v1/public/submissions',
     description: 'Store a visitor submission',
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/widgets/:id/submissions',
+    description: "Paginated submissions for one of the owner's widgets",
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/dashboard/summary',
+    description: 'Aggregate submission stats for the owner',
   },
   {
     method: 'GET',

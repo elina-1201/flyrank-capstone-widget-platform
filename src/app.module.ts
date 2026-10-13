@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { DatabaseModule } from './database/database.module';
 import { OwnerModule } from './owner/owner.module';
 import { PublicModule } from './public/public.module';
@@ -20,6 +21,7 @@ import { WidgetModule } from './widgets/widget.module';
     WidgetModule,
     PublicModule,
     SubmissionsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

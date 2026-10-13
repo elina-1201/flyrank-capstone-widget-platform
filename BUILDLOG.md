@@ -121,3 +121,11 @@
 **Where AI was wrong**
 - Initially assumed the `typeorm` `^1.1.1` dependency range was "bogus" per the PLAN.md preflight note; it resolves fine and ships the CLI, so no pin was needed.
 
+
+## 2026-10-13 — Dashboard (paginated submissions + summary)
+
+**Where AI helped**
+- Added `DashboardModule` (`DashboardController` / `DashboardService` / `ListSubmissionsQueryDto`) behind `JwtAuthGuard` + `@CurrentOwner()`.
+- `GET /api/v1/widgets/:id/submissions?page=&perPage=` — owner-scoped (reuses `WidgetService.findOne` so a non-owned widget 404s), `findAndCount` ordered by `submittedAt DESC`, returns `{ data, page, perPage, total }` with the DESIGN.md field shape (`ip`, `countryCode`, `city`, `geoProvider`, `submittedAt`).
+- `GET /api/v1/dashboard/summary` — one `Promise.all` of four owner-scoped aggregate queries (totals, byWidget, byDay via `date_trunc('day')`, byCountry) joined through `widgets.owner_id`.
+- Wired `DashboardModule` into `AppModule`, bumped `APP_VERSION` → 1.3 and added both routes to the root API index.
