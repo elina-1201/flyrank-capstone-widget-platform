@@ -129,3 +129,18 @@
 - `GET /api/v1/widgets/:id/submissions?page=&perPage=` — owner-scoped (reuses `WidgetService.findOne` so a non-owned widget 404s), `findAndCount` ordered by `submittedAt DESC`, returns `{ data, page, perPage, total }` with the DESIGN.md field shape (`ip`, `countryCode`, `city`, `geoProvider`, `submittedAt`).
 - `GET /api/v1/dashboard/summary` — one `Promise.all` of four owner-scoped aggregate queries (totals, byWidget, byDay via `date_trunc('day')`, byCountry) joined through `widgets.owner_id`.
 - Wired `DashboardModule` into `AppModule`, bumped `APP_VERSION` → 1.3 and added both routes to the root API index.
+
+## 2026-10-14 — Verification & evidence (e2e + unit test plan)
+
+**Where AI helped**
+- Verified the existing `test/widget-delivery.e2e-spec.ts` (config cache headers, versioned bundle, embed snippet) and checked off its three PLAN.md bullets.
+- Created `test/submissions.e2e-spec.ts` (12 tests): CORS preflight + `Allow-Origin` on `POST`; valid submission linked to the right widget/tenant and visible via the dashboard; validation/error cases (missing field, wrong type, extra field, malformed JSON, unknown widget, oversized → `413`, never `500`); rate-limit burst → `429` then a different IP still succeeds; honeypot filled → dropped / empty → stored; duplicate `idempotency_key` → one row, no duplicate event.
+- Created `test/enrichment.e2e-spec.ts` (3 tests) with a deterministic `fetch` stub: provider A down → B enriches; both down → stored without geo, still `2xx`; notifier throws → submission still stored (drives the real `OutboxWorker`).
+- Created `test/dashboard.e2e-spec.ts` — inserts submissions directly so geo/timestamps are controlled, then asserts totals/byWidget/byDay/byCountry and tenant isolation.
+- Extended `test/utils/test-app.ts` with `realOutboxWorker` + `configure` options so a test can drive the worker and override providers.
+- Added `trust proxy` support to `configure-app.ts` (new `TRUST_PROXY` env var, documented in `.env.example`, enabled in `test/setup-e2e.ts`) so `req.ip` reflects the real client behind a reverse proxy — otherwise per-IP rate limiting would bucket every visitor together.
+
+**Where AI was wrong**
+- The `outbox.worker.spec.ts` unit suite failed to load because `@nestjs/schedule` (and then `@nestjs/typeorm`) ship as ESM, which the CommonJS unit jest config cannot `require`. First tried mocking `@nestjs/schedule` alone, which only moved the error to `@nestjs/typeorm`; the real fix was adding `NODE_OPTIONS=--experimental-vm-modules` to the `test` / `test:watch` scripts (matching `test:e2e`).
+- Ran the full e2e suite in parallel (jest default) and saw 16 failures; the suites share one database and `truncateAll` wipes tables mid-run for other workers. Confirmed it is a pre-existing infra issue (passes serially, 38/38), not caused by these changes — flagged for a separate fix (e.g. `maxWorkers: 1`).
+
