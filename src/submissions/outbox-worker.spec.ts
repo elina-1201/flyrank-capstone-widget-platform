@@ -34,13 +34,21 @@ function makeWorker(events: SubmissionEvent[], notifier: Notifier) {
     const saved: SubmissionEvent[] = [];
     const manager = {
         getRepository: () => ({ find: async () => events }),
-        save: async (event: SubmissionEvent) => {
-            saved.push(event);
+        findOne: async (_entity: unknown, options: { where: { id: string } }) =>
+            events.find((event) => event.id === options.where.id) ?? null,
+        save: async (event: SubmissionEvent | SubmissionEvent[]) => {
+            if (Array.isArray(event)) {
+                saved.push(...event);
+            } else {
+                saved.push(event);
+            }
             return event;
         },
     };
     const eventRepo = {
-        manager: { transaction: async (cb: (m: unknown) => unknown) => cb(manager) },
+        manager: {
+            transaction: async (cb: (m: unknown) => unknown) => cb(manager),
+        },
     };
     const worker = new OutboxWorker(eventRepo as never, notifier);
     return { worker, saved };
@@ -49,7 +57,9 @@ function makeWorker(events: SubmissionEvent[], notifier: Notifier) {
 describe('OutboxWorker', () => {
     it('claims a due pending event and marks it sent', async () => {
         const event = makeEvent();
-        const notifier: Notifier = { notify: jest.fn().mockResolvedValue(undefined) };
+        const notifier: Notifier = {
+            notify: jest.fn().mockResolvedValue(undefined),
+        };
         const { worker, saved } = makeWorker([event], notifier);
 
         await worker.processOutbox();
@@ -89,5 +99,29 @@ describe('OutboxWorker', () => {
         expect(event.attempts).toBe(5);
         expect(event.status).toBe('failed');
         expect(event.lastError).toBe('smtp down');
+    });
+
+    it('a notifier that never settles still fails fast (does not hang the loop)', async () => {
+        jest.useFakeTimers();
+        try {
+            const event = makeEvent({ attempts: 0 });
+            // A transport that hangs instead of rejecting — the real-world case
+            // when the SMTP host is unreachable and no timeout is set.
+            const notifier: Notifier = {
+                notify: jest.fn().mockReturnValue(new Promise(() => undefined)),
+            };
+            const { worker } = makeWorker([event], notifier);
+
+            const run = worker.processOutbox();
+            // Advance past the dispatch ceiling so the guard fires.
+            await jest.advanceTimersByTimeAsync(20_000);
+            await run;
+
+            expect(event.attempts).toBe(1);
+            expect(event.status).toBe('pending');
+            expect(event.lastError).toContain('timed out');
+        } finally {
+            jest.useRealTimers();
+        }
     });
 });

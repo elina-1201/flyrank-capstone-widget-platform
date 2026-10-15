@@ -5,10 +5,11 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Reflector } from '@nestjs/core';
+import { HttpAdapterHost, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import cors from 'cors';
 import { join } from 'path';
+import { ApiErrorFilter } from './common/api-error.filter';
 
 /**
  * Parses `TRUST_PROXY` into the value Express' `trust proxy` setting expects.
@@ -86,4 +87,11 @@ export function configureApp(app: NestExpressApplication): void {
   );
 
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+
+  // Registered last: it delegates enveloped exceptions to Nest's default
+  // handling and reshapes the rest, so every failure keeps DESIGN.md's
+  // `{ error: { code, message } }` contract.
+  app.useGlobalFilters(
+    new ApiErrorFilter(app.get(HttpAdapterHost).httpAdapter),
+  );
 }

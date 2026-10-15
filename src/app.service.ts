@@ -77,7 +77,7 @@ const ENDPOINTS: Endpoint[] = [
 
 @Injectable()
 export class AppService {
-  constructor(private readonly dataSource: DataSource) { }
+  constructor(private readonly dataSource: DataSource) {}
 
   getInfo() {
     return {

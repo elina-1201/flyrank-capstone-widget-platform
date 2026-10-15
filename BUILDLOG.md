@@ -144,3 +144,39 @@
 - The `outbox.worker.spec.ts` unit suite failed to load because `@nestjs/schedule` (and then `@nestjs/typeorm`) ship as ESM, which the CommonJS unit jest config cannot `require`. First tried mocking `@nestjs/schedule` alone, which only moved the error to `@nestjs/typeorm`; the real fix was adding `NODE_OPTIONS=--experimental-vm-modules` to the `test` / `test:watch` scripts (matching `test:e2e`).
 - Ran the full e2e suite in parallel (jest default) and saw 16 failures; the suites share one database and `truncateAll` wipes tables mid-run for other workers. Confirmed it is a pre-existing infra issue (passes serially, 38/38), not caused by these changes — flagged for a separate fix (e.g. `maxWorkers: 1`).
 
+## 2026-10-14 — Documentation pack (README, capstone.yaml, EVIDENCE, LICENSE, seed)
+
+**Where AI helped**
+- Rewrote `README.md`: Mermaid architecture diagram, layering table, the ordered submission pipeline, exact run + seed steps, the full API reference, the Trade-offs section (moved here from PLAN.md), and a limitations note.
+- Added `src/database/seed.ts` + a `pnpm seed` script — idempotent demo data (one owner `demo@example.com` / `password123`, one signup-form widget) that prints the embed snippet. Verified it runs and re-runs cleanly.
+- Created `capstone.yaml` (`run` / `seed` / `test` / `base_url` / probes / demo credentials) and `EVIDENCE.md` (one proof per Section 6 checkbox: test names + results, plus live `curl` transcripts for the six acceptance probes).
+- Added `LICENSE` (MIT) and set `"license": "MIT"` in `package.json`; filled safe local placeholders into `.env.example` (`DATABASE_URL`, `JWT_SECRET`, `PUBLIC_BASE_URL`).
+- Captured live probe evidence against the running server: cross-origin `201` with `Access-Control-Allow-Origin`, malformed → `400`, oversized → `413`, burst → `429` then `/health` still `200`, honeypot → `201` with no row, duplicate key → one row, outbox events `sent` + Mailpit caught 20 messages.
+
+## 2026-10-14 — One-command Docker run (Dockerfile + api service)
+
+**Where AI helped**
+- Added a multi-stage `Dockerfile` (build stage compiles TS; runtime stage installs prod deps and copies `dist/` + `public/`) and a `.dockerignore`.
+- Added an `api` service to `docker-compose.yml` with `env_file: .env` and overrides for the two host-specific values (`DATABASE_URL` → `db:5432`, `SMTP_HOST` → `mailpit`), plus a Postgres healthcheck and `depends_on` so the API waits for the DB. `docker compose up` now boots Postgres + Mailpit + API in one command.
+- Added a `seed:prod` script (`node dist/database/seed.js`) so seeding works in the prod-only runtime image; documented `docker compose run --rm api pnpm seed:prod`.
+- Updated README (one-command Docker path first, local dev second), `capstone.yaml` (`run: docker compose up`), and `EVIDENCE.md` (one-command proof).
+- Verified live: `docker compose up` → all three containers healthy, `/health` → `{"status":"ok","db":"ok"}`, `seed:prod` idempotent, and a cross-origin submission stored + emailed via Mailpit inside the container network.
+
+**Where AI was wrong**
+- The first image build failed with `ERR_PNPM_IGNORED_BUILDS`: corepack pulled pnpm 12, which errors on ignored build scripts. Fixed by pinning `"packageManager": "pnpm@10.27.0"` to match local.
+- `seed:prod` then failed with `Cannot find module 'dotenv/config'` — `dotenv` was a devDependency, absent from the prod image. Moved it to `dependencies` and re-locked.
+
+**What the human changed**
+- Chose the full scope (Dockerfile + api service), `env_file` with service-name overrides, and the `seed:prod` approach over keeping ts-node in the runtime image.
+
+## 2026-10-15 — Acceptance probes on the live system (Probes 1–6) + two fixes
+
+**Where AI helped**
+- Ran all six Section 13 acceptance probes against the booted Docker stack (Postgres + Mailpit + API) and recorded the transcripts in `EVIDENCE.md`; checked off the remaining PLAN.md bullets.
+- Fixed an **outbox hang**: Probe 5 (notifier down) showed the worker's transaction stuck `idle in transaction` — it dispatched *inside* its DB transaction and `MailpitNotifier` had no socket timeout, so an unreachable SMTP host hung forever and the retry/backoff path never ran. The worker now claims in a short transaction (`next_attempt_at` bump as claim marker), dispatches **outside** it with a `DISPATCH_TIMEOUT_MS` ceiling, and finalizes per event; the notifier sets `connectionTimeout`/`greetingTimeout`/`socketTimeout`. Added a regression test (a notifier that never settles) and verified live: events go `pending → attempts 1..4 → failed`, no `idle in transaction`, and recovery works once Mailpit returns.
+- Fixed an **envelope gap**: DESIGN.md requires `{ error: { code, message } }` on every non-2xx, but a body `body-parser` rejected before any handler ran returned Nest's raw `{ statusCode, message, error }`. Added `src/common/api-error.filter.ts` (catch-all extending `BaseExceptionFilter`) that delegates already-enveloped exceptions and reshapes the rest; malformed JSON is now `400 { error: { code: "BAD_REQUEST", … } }`.
+
+**Where AI was wrong**
+- First attempt at the envelope fix caught only `SyntaxError`, and the second only matched a `type` field — neither fired, because `body-parser`'s error reaches Nest already wrapped in a `BadRequestException`. Diagnosed by logging the exception class in the filter, then generalised to any un-enveloped `HttpException`.
+- Forgot to pass the HTTP adapter to the catch-all `BaseExceptionFilter`, which turned every delegated `4xx` into a `500` until corrected.
+- Probe 4's "provider A down → B answers" leg could not be run live: `ipapi.co` rate-limits this shared egress IP. Verified the fallback with the deterministic mock in `test/enrichment.e2e-spec.ts` instead, and used `X-Forwarded-For` (via a temporary `TRUST_PROXY=1` instance) to prove the live enrich and graceful-degradation paths.

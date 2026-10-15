@@ -5,6 +5,14 @@ import nodemailer from 'nodemailer';
 import { Notifier } from './notifier.interface';
 import { SubmissionEvent } from './submission-event.entity';
 
+// Nodemailer's defaults wait on the OS TCP timeouts (minutes) when the SMTP host
+// is unreachable. The outbox worker bounds each dispatch, so a hang here would
+// stall the whole retry loop — these bounds turn "host is down" into a fast,
+// recordable failure instead.
+const SMTP_CONNECTION_TIMEOUT_MS = 5_000;
+const SMTP_GREETING_TIMEOUT_MS = 5_000;
+const SMTP_SOCKET_TIMEOUT_MS = 10_000;
+
 @Injectable()
 export class MailpitNotifier implements Notifier {
   private readonly logger = new Logger(MailpitNotifier.name);
@@ -30,6 +38,9 @@ export class MailpitNotifier implements Notifier {
       host,
       port,
       secure: false,
+      connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+      greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
+      socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
     });
   }
 

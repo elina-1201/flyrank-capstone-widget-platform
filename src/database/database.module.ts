@@ -12,7 +12,7 @@ import { join } from 'path';
         if (!databaseUrl) {
           throw new Error(
             'Missing required environment variable "DATABASE_URL". ' +
-            'Add it to .env (see .env.example).',
+              'Add it to .env (see .env.example).',
           );
         }
         return {
@@ -28,4 +28,4 @@ import { join } from 'path';
     }),
   ],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}

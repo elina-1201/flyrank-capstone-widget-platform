@@ -12,15 +12,18 @@ import { SubmissionsController } from './submissions.controller';
 import { SubmissionsService } from './submissions.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Submission, SubmissionEvent]), WidgetModule],
-    controllers: [SubmissionsController],
-    providers: [
-        SubmissionsService,
-        RateLimitService,
-        GeoService,
-        OutboxWorker,
-        { provide: NOTIFIER, useClass: MailpitNotifier },
-    ],
-    exports: [TypeOrmModule, SubmissionsService],
+  imports: [
+    TypeOrmModule.forFeature([Submission, SubmissionEvent]),
+    WidgetModule,
+  ],
+  controllers: [SubmissionsController],
+  providers: [
+    SubmissionsService,
+    RateLimitService,
+    GeoService,
+    OutboxWorker,
+    { provide: NOTIFIER, useClass: MailpitNotifier },
+  ],
+  exports: [TypeOrmModule, SubmissionsService],
 })
-export class SubmissionsModule { }
+export class SubmissionsModule {}

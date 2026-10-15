@@ -157,6 +157,10 @@ describe('Submissions (e2e)', () => {
 
             expect(res.status).toBe(400);
             expect(res.status).toBeLessThan(500);
+            // The envelope holds for parse failures too (body-parser throws
+            // before any route handler runs).
+            expect(res.body.error.code).toBe('BAD_REQUEST');
+            expect(typeof res.body.error.message).toBe('string');
         });
 
         it('unknown widget → 404 WIDGET_NOT_FOUND', async () => {

@@ -1,0 +1,44 @@
+# Capstone manifest — read by the evaluator.
+# Schema applies automatically on boot (migrationsRun), so `run` is just the boot command.
+name: flyrank-capstone-widget-platform
+description: Embeddable widget & lead-capture platform (public submission API, geo enrichment, outbox side effects, dashboard).
+
+# One command to boot the whole system (Postgres + Mailpit + API).
+# The API applies migrations on boot, so no extra step is needed.
+run: docker compose up
+
+# Demo data: one owner + one widget (idempotent). NOT migrations.
+seed: docker compose run --rm api pnpm seed:prod
+
+# Optional test command.
+test: pnpm test:e2e
+
+base_url: http://localhost:3000
+
+# Endpoints the evaluator probes.
+probes:
+  - name: health
+    method: GET
+    path: /health
+    expect: 200
+
+  - name: widget-config
+    method: GET
+    path: /api/v1/public/widgets/:publicId/config
+    expect: 200
+
+  - name: submission
+    method: POST
+    path: /api/v1/public/submissions
+    expect: 201
+
+  - name: dashboard-summary
+    method: GET
+    path: /api/v1/dashboard/summary
+    expect: 200
+    auth: bearer
+
+# Demo credentials created by `seed`.
+demo_credentials:
+  email: demo@example.com
+  password: password123

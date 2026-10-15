@@ -4,7 +4,8 @@
   "description": "",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "packageManager": "pnpm@10.27.0",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -21,7 +22,9 @@
     "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
     "migration:generate": "pnpm typeorm migration:generate",
     "migration:run": "pnpm typeorm migration:run",
-    "migration:revert": "pnpm typeorm migration:revert"
+    "migration:revert": "pnpm typeorm migration:revert",
+    "seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
+    "seed:prod": "node dist/database/seed.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -35,6 +38,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
     "nanoid": "^3.3.19",
     "nodemailer": "^10.0.16",
     "pg": "^8.23.0",
@@ -54,7 +58,6 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
     "@types/supertest": "^7.0.0",
-    "dotenv": "^18.0.7",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",

@@ -8,19 +8,19 @@ import { ListSubmissionsQueryDto } from './dto/list-submissions-query.dto';
 @Controller('api/v1')
 @UseGuards(JwtAuthGuard)
 export class DashboardController {
-    constructor(private readonly dashboardService: DashboardService) { }
+  constructor(private readonly dashboardService: DashboardService) {}
 
-    @Get('widgets/:id/submissions')
-    listSubmissions(
-        @CurrentOwner() owner: Owner,
-        @Param('id') id: string,
-        @Query() query: ListSubmissionsQueryDto,
-    ) {
-        return this.dashboardService.listSubmissions(owner.id, id, query);
-    }
+  @Get('widgets/:id/submissions')
+  listSubmissions(
+    @CurrentOwner() owner: Owner,
+    @Param('id') id: string,
+    @Query() query: ListSubmissionsQueryDto,
+  ) {
+    return this.dashboardService.listSubmissions(owner.id, id, query);
+  }
 
-    @Get('dashboard/summary')
-    summary(@CurrentOwner() owner: Owner) {
-        return this.dashboardService.summary(owner.id);
-    }
+  @Get('dashboard/summary')
+  summary(@CurrentOwner() owner: Owner) {
+    return this.dashboardService.summary(owner.id);
+  }
 }

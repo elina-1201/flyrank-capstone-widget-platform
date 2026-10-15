@@ -6,19 +6,19 @@ import { configureApp } from '../../src/configure-app';
 import { OutboxWorker } from '../../src/submissions/outbox-worker';
 
 export interface TestApp {
-    app: NestExpressApplication;
-    dataSource: DataSource;
-    close(): Promise<void>;
+  app: NestExpressApplication;
+  dataSource: DataSource;
+  close(): Promise<void>;
 }
 
 export interface TestAppOptions {
-    /**
-     * Keep the real `@Cron` worker instead of the no-op stub. Use this when a
-     * test needs to drive `processOutbox()` itself (e.g. notifier failure).
-     */
-    realOutboxWorker?: boolean;
-    /** Extra provider overrides applied on top of the default wiring. */
-    configure?: (builder: TestingModuleBuilder) => TestingModuleBuilder;
+  /**
+   * Keep the real `@Cron` worker instead of the no-op stub. Use this when a
+   * test needs to drive `processOutbox()` itself (e.g. notifier failure).
+   */
+  realOutboxWorker?: boolean;
+  /** Extra provider overrides applied on top of the default wiring. */
+  configure?: (builder: TestingModuleBuilder) => TestingModuleBuilder;
 }
 
 /**
@@ -31,36 +31,36 @@ export interface TestAppOptions {
  * `outbox.worker.spec.ts`; pass `realOutboxWorker: true` to drive it manually.
  */
 export async function createTestApp(
-    options: TestAppOptions = {},
+  options: TestAppOptions = {},
 ): Promise<TestApp> {
-    let builder = Test.createTestingModule({ imports: [AppModule] });
+  let builder = Test.createTestingModule({ imports: [AppModule] });
 
-    if (!options.realOutboxWorker) {
-        builder = builder
-            .overrideProvider(OutboxWorker)
-            .useValue({ processOutbox: async () => undefined });
-    }
-    if (options.configure) {
-        builder = options.configure(builder);
-    }
+  if (!options.realOutboxWorker) {
+    builder = builder
+      .overrideProvider(OutboxWorker)
+      .useValue({ processOutbox: async () => undefined });
+  }
+  if (options.configure) {
+    builder = options.configure(builder);
+  }
 
-    const moduleRef = await builder.compile();
+  const moduleRef = await builder.compile();
 
-    const app = moduleRef.createNestApplication<NestExpressApplication>();
-    configureApp(app);
-    await app.init();
+  const app = moduleRef.createNestApplication<NestExpressApplication>();
+  configureApp(app);
+  await app.init();
 
-    const dataSource = app.get(DataSource);
-    return {
-        app,
-        dataSource,
-        close: () => app.close(),
-    };
+  const dataSource = app.get(DataSource);
+  return {
+    app,
+    dataSource,
+    close: () => app.close(),
+  };
 }
 
 /** Wipes all domain tables between tests, resetting identity sequences. */
 export async function truncateAll(dataSource: DataSource): Promise<void> {
-    await dataSource.query(
-        'TRUNCATE TABLE submission_events, submissions, widgets, owners RESTART IDENTITY CASCADE',
-    );
+  await dataSource.query(
+    'TRUNCATE TABLE submission_events, submissions, widgets, owners RESTART IDENTITY CASCADE',
+  );
 }

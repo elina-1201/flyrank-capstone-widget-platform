@@ -13,7 +13,7 @@ export class WidgetService {
     @InjectRepository(Widget)
     private readonly widgetRepo: Repository<Widget>,
     private readonly config: ConfigService,
-  ) { }
+  ) {}
 
   async create(ownerId: string, dto: CreateWidgetDto) {
     const widget = this.widgetRepo.create({
