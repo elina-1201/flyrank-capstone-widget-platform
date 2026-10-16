@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Northwind Studio — Join the waitlist</title>
+    <meta name="description"
+        content="A plain HTML page served from a second origin, embedding the widget with one script tag.">
+
+    <!--
+    The "customer website" for the capstone.
+
+    It exists to prove the third request path: a page served from a DIFFERENT origin
+    than the API loads the widget bundle, fetches the widget config, and posts a
+    submission cross-origin.
+
+    Run it from the repository root:
+
+        python -m http.server 5500 --directory customer-site
+
+    Then open http://localhost:5500 — a different origin from the API on :3000.
+
+    The widget id defaults to the one `pnpm seed` creates. nanoid is random per seed
+    run, so on a fresh database replace DEFAULT_WIDGET_ID with the id printed by the
+    seed, or append ?id=<publicId> to the URL to point at any widget.
+  -->
+    <style>
+        :root {
+            --ink: #0f172a;
+            --ink-soft: #475569;
+            --ink-faint: #64748b;
+            --line: #e2e8f0;
+            --surface: #ffffff;
+            --canvas: #f8fafc;
+            --accent: #4f46e5;
+            --accent-soft: #eef2ff;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--canvas);
+            color: var(--ink);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- Top bar: states the origin, so the cross-origin claim is verifiable --- */
+        .topbar {
+            border-bottom: 1px solid var(--line);
+            background: var(--surface);
+        }
+
+        .topbar__inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 14px 24px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .brand__mark {
+            display: grid;
+            place-items: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 7px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .origin {
+            font-size: 12px;
+            color: var(--ink-faint);
+            background: var(--canvas);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 4px 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        /* --- Hero: copy beside the widget on wide screens, widget first on narrow ones --- */
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 40px;
+            align-items: center;
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 28px 24px 64px;
+        }
+
+        @media (min-width: 900px) {
+            .hero {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+                gap: 64px;
+                padding-top: 88px;
+            }
+        }
+
+        .eyebrow {
+            display: inline-block;
+            margin: 0 0 18px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0 0 16px;
+            font-size: clamp(30px, 5vw, 44px);
+            line-height: 1.12;
+            letter-spacing: -0.025em;
+            font-weight: 700;
+        }
+
+        .lede {
+            margin: 0 0 28px;
+            max-width: 46ch;
+            color: var(--ink-soft);
+            font-size: 17px;
+        }
+
+        .points {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 12px;
+        }
+
+        .points li {
+            position: relative;
+            padding-left: 30px;
+            color: var(--ink-soft);
+            font-size: 15px;
+        }
+
+        .points li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 2px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-soft);
+            box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.28);
+        }
+
+        .points li::after {
+            content: "";
+            position: absolute;
+            left: 6px;
+            top: 8px;
+            width: 6px;
+            height: 3px;
+            border-left: 1.5px solid var(--accent);
+            border-bottom: 1.5px solid var(--accent);
+            transform: rotate(-45deg);
+        }
+
+        /* --- The embed slot: the bundle injects its own card here --- */
+        .slot {
+            display: flex;
+            justify-content: flex-start;
+            /* Narrow screens stack to one column; keeping the form first means it
+               stays above the fold instead of falling below the copy. */
+            order: -1;
+        }
+
+        @media (min-width: 900px) {
+            .slot {
+                justify-content: flex-end;
+                order: 0;
+            }
+        }
+
+        .fallback {
+            width: 100%;
+            max-width: 360px;
+            padding: 24px;
+            border: 1px dashed var(--line);
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--ink-faint);
+            font-size: 14px;
+        }
+
+        .fallback code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 13px;
+            color: var(--ink-soft);
+        }
+
+        footer {
+            border-top: 1px solid var(--line);
+            background: var(--surface);
+        }
+
+        footer p {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 20px 24px;
+            color: var(--ink-faint);
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="topbar__inner">
+            <div class="brand">
+                <span class="brand__mark" aria-hidden="true">N</span>
+                <span>Northwind Studio</span>
+            </div>
+            <span class="origin">served from <span id="origin-host">this origin</span></span>
+        </div>
+    </header>
+
+    <main class="hero">
+        <div>
+            <p class="eyebrow">Early access</p>
+            <h1>Be first in line when we open the doors.</h1>
+            <p class="lede">
+                We are onboarding a small group of teams before general availability.
+                Leave your email and we will send you an invite as soon as your spot is ready.
+            </p>
+            <ul class="points">
+                <li>No credit card, no commitment</li>
+                <li>One email when your invite is ready — nothing else</li>
+                <li>Leave the list at any time</li>
+            </ul>
+        </div>
+
+        <!--
+      The whole integration is the next three lines: one <script> tag.
+
+      The bundle reads its own src to learn the API origin and the widget id, then
+      appends its rendered card to this element (script.parentElement).
+    -->
+        <div class="slot" id="widget-slot">
+            <p class="fallback" id="widget-fallback">
+                Loading the signup form…<br>
+                If it does not appear, the API is not reachable. Start it with
+                <code>docker compose up</code> and reload.
+            </p>
+        </div>
+    </main>
+
+    <footer>
+        <p>
+            A demo customer page for the embeddable widget platform. It is served from a
+            different origin than the API to exercise the cross-origin submission path.
+        </p>
+    </footer>
+
+    <script>
+        (function () {
+            'use strict';
+
+            var API_ORIGIN = 'http://localhost:3000';
+            var BUNDLE_VERSION = 'v1';
+
+            // Matches the widget `pnpm seed` creates. Override with ?id=<publicId>.
+            var DEFAULT_WIDGET_ID = 'zkqL7c6CBlSN';
+
+            var params = new URLSearchParams(window.location.search);
+            var widgetId = params.get('id') || DEFAULT_WIDGET_ID;
+
+            document.getElementById('origin-host').textContent = window.location.host;
+
+            var script = document.createElement('script');
+            script.src = API_ORIGIN + '/widget.' + BUNDLE_VERSION + '.js?id=' + encodeURIComponent(widgetId);
+            script.onerror = function () {
+                // Leave the fallback in place; the page itself must stay usable.
+                document.getElementById('widget-fallback').textContent =
+                    'The widget could not be loaded. Check that the API is running on ' + API_ORIGIN + '.';
+            };
+
+            var slot = document.getElementById('widget-slot');
+            slot.innerHTML = '';
+            slot.appendChild(script);
+        })();
+    </script>
+</body>
+
+</html>

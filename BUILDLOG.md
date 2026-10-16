@@ -180,3 +180,9 @@
 - First attempt at the envelope fix caught only `SyntaxError`, and the second only matched a `type` field — neither fired, because `body-parser`'s error reaches Nest already wrapped in a `BadRequestException`. Diagnosed by logging the exception class in the filter, then generalised to any un-enveloped `HttpException`.
 - Forgot to pass the HTTP adapter to the catch-all `BaseExceptionFilter`, which turned every delegated `4xx` into a `500` until corrected.
 - Probe 4's "provider A down → B answers" leg could not be run live: `ipapi.co` rate-limits this shared egress IP. Verified the fallback with the deterministic mock in `test/enrichment.e2e-spec.ts` instead, and used `X-Forwarded-For` (via a temporary `TRUST_PROXY=1` instance) to prove the live enrich and graceful-degradation paths.
+
+## 2026-10-15 — Customer site in-repo, Supabase skills removed, testing fixes planned
+
+**Where AI helped**
+- Added `customer-site/index.html`, so the "customer website" lives in the repo instead of as a sibling file outside it. Plain HTML, the widget loaded by one `<script>` tag, form visible without scrolling (copy left, widget column right). The page accepts `?id=<publicId>` to target any widget and defaults to the id `pnpm seed` creates; a fallback card stays in place if the API is unreachable. Verified live from a second origin (`python -m http.server 5500 --directory customer-site`): the form rendered, a real submit returned "Thank you!", and the row appeared in `submissions` (geo NULL — the request arrived from the Docker gateway's private IP, which is the intended graceful-degradation path).
+- Removed `.agents/skills/supabase/` and `.agents/skills/supabase-postgres-best-practices/` — both sourced from `supabase/agent-skills` and unused since auth moved to local Postgres — and emptied `skills-lock.json`. No Supabase reference remains outside git history and the historical notes in `BUILDLOG.md` / `PLAN.md` / the README trade-off table.
