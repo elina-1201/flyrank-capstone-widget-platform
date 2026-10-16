@@ -4,7 +4,8 @@ name: flyrank-capstone-widget-platform
 description: Embeddable widget & lead-capture platform (public submission API, geo enrichment, outbox side effects, dashboard).
 
 # One command to boot the whole system (Postgres + Mailpit + API).
-# The API applies migrations on boot, so no extra step is needed.
+# The API applies migrations on boot.
+# First run: cp .env.example .env.
 run: docker compose up
 
 # Demo data: one owner + one widget (idempotent). NOT migrations.
