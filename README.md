@@ -99,9 +99,16 @@ pnpm seed
 | Email | `demo@example.com` |
 | Password | `password123` |
 
-The seed prints the widget's embed snippet. Paste it into a page served from a
-**different origin** (e.g. `python -m http.server 5500` in a folder with an HTML file) to
-see the widget render and submit cross-origin.
+The seed gives the demo widget fixed ids, so the bundled demo page works out of the box.
+Serve it from a **different origin** than the API and open it:
+
+```bash
+python3 -m http.server 5500 --directory customer-site
+# open http://localhost:5500 — the widget renders and a submission lands in the dashboard
+```
+
+The seed also prints the widget's embed snippet — paste it into any other page to try the
+same flow.
 
 ### Environment variables
 
@@ -180,13 +187,24 @@ the generated SQL.
 
 ```bash
 pnpm test        # unit tests (src/**/*.spec.ts)
-pnpm test:e2e    # end-to-end tests (test/**/*.e2e-spec.ts) — needs Postgres
+pnpm test:e2e    # end-to-end tests (test/**/*.e2e-spec.ts) — serial, needs Postgres
 ```
 
 The e2e suites boot the real `AppModule` against a dedicated test database
 (`TEST_DATABASE_URL`, default `postgres://postgres:postgres@localhost:5433/embedded_widget_test`).
-They share one database, so run them serially (`--runInBand`) if you see cross-suite
-interference.
+They share that database, so the suites run serially (`--runInBand` is part of the
+`test:e2e` script).
+
+The test database is created by `db-init/01-create-test-db.sql` the first time the
+Postgres volume initializes. If your `pgdata` volume predates that script, reset it
+(`docker compose down -v`) or create the database by hand:
+
+```bash
+docker compose exec db psql -U postgres -c 'CREATE DATABASE embedded_widget_test;'
+```
+
+`capstone.yaml`'s `test:` runs these suites with the setup included
+(`pnpm install && docker compose up -d --wait db && pnpm test:e2e`).
 
 ## Trade-offs
 
@@ -228,8 +246,8 @@ interference.
   submission before it degrades to "no geo".
 - **Email is local-only.** Mailpit catches mail in dev; there is no production SMTP provider
   wired up. The graded property is that a failing side effect never blocks the submission.
-- **No frontend.** The dashboard is an API only; the "customer site" is a plain HTML file on a
-  second origin. This is a backend capstone.
+- **No frontend.** The dashboard is an API only; the "customer site" is the plain
+  `customer-site/index.html` served from a second origin. This is a backend capstone.
 - **`TRUST_PROXY` must match the deployment.** Left unset behind a proxy, per-IP rate limiting
   and geo enrichment silently use the proxy's address (see Trade-offs).
 

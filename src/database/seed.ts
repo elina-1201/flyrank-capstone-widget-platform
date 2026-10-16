@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import { nanoid } from 'nanoid';
 import { scrypt as _scrypt, randomBytes } from 'node:crypto';
 import { promisify } from 'node:util';
 import 'reflect-metadata';
@@ -19,6 +18,10 @@ async function hashPassword(password: string): Promise<string> {
 
 const DEMO_EMAIL = 'demo@example.com';
 const DEMO_PASSWORD = 'password123';
+// Fixed ids give the demo widget stable, nameable inputs: the bundled
+// customer-site page and the evaluator probes (capstone.yaml) point at them.
+const DEMO_WIDGET_ID = '00000000-0000-4000-8000-000000000001';
+const DEMO_WIDGET_PUBLIC_ID = 'demoWidget01';
 
 /**
  * Seeds demo data: one owner and one signup-form widget. Idempotent — re-running
@@ -50,8 +53,9 @@ async function seed(ds: DataSource): Promise<void> {
   if (!widget) {
     widget = await widgets.save(
       widgets.create({
+        id: DEMO_WIDGET_ID,
         ownerId: owner.id,
-        publicId: nanoid(12),
+        publicId: DEMO_WIDGET_PUBLIC_ID,
         type: 'signup_form',
         title: 'Join our newsletter',
         description: 'Demo widget created by the seed script.',
@@ -66,6 +70,11 @@ async function seed(ds: DataSource): Promise<void> {
     console.log('Created demo widget');
   } else {
     console.log('Demo widget already exists — reusing it');
+    if (widget.publicId !== DEMO_WIDGET_PUBLIC_ID) {
+      console.log(
+        `  (keeping its publicId "${widget.publicId}" — a fresh database creates "${DEMO_WIDGET_PUBLIC_ID}")`,
+      );
+    }
   }
 
   const base = (process.env.PUBLIC_BASE_URL ?? 'http://localhost:3000').replace(

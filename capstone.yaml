@@ -8,14 +8,26 @@ description: Embeddable widget & lead-capture platform (public submission API, g
 run: docker compose up
 
 # Demo data: one owner + one widget (idempotent). NOT migrations.
+# Creates owner demo@example.com and a widget with fixed ids:
+#   publicId demoWidget01  (customer-site page, config probe)
+#   id       00000000-0000-4000-8000-000000000001  (submission probe body)
 seed: docker compose run --rm api pnpm seed:prod
 
-# Optional test command.
-test: pnpm test:e2e
+# e2e suites, everything included: installs deps, starts Postgres (no-op if the
+# stack is already up; waits until healthy — first boot creates the test database
+# via db-init/), then runs the suites serially.
+test: pnpm install --frozen-lockfile && docker compose up -d --wait db && pnpm test:e2e
 
 base_url: http://localhost:3000
 
-# Endpoints the evaluator probes.
+# Endpoints the evaluator probes. Run `seed` first — the widget probes use the
+# demo widget's fixed ids (see above).
+#
+# Rate limiting: submissions are limited to 10/min per client IP. A single sweep
+# of these probes fits well inside that; a 429 on the submission probe means
+# another burst hit the same client IP within the last 60 seconds (wait for the
+# window to reset, or resend with X-Forwarded-For while the API runs with
+# TRUST_PROXY=1 — see EVIDENCE.md, "Re-running the live probes").
 probes:
   - name: health
     method: GET
@@ -24,12 +36,24 @@ probes:
 
   - name: widget-config
     method: GET
-    path: /api/v1/public/widgets/:publicId/config
+    path: /api/v1/public/widgets/demoWidget01/config
     expect: 200
 
   - name: submission
     method: POST
     path: /api/v1/public/submissions
+    headers:
+      Content-Type: application/json
+      # Ignored unless the API runs with TRUST_PROXY=1; then it gives the probe
+      # its own rate-limit bucket, independent of other traffic.
+      X-Forwarded-For: 203.0.113.10
+    # Fixed ids + idempotency key: safe to re-run, never creates a second row.
+    body:
+      widgetId: 00000000-0000-4000-8000-000000000001
+      idempotencyKey: 00000000-0000-4000-8000-000000000002
+      payload:
+        email: probe@example.com
+        name: Capstone probe
     expect: 201
 
   - name: dashboard-summary

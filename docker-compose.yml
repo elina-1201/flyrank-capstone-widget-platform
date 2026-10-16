@@ -12,6 +12,9 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # First-boot init: creates the dedicated e2e test database. Runs only when
+      # the data volume is empty; see db-init/01-create-test-db.sql.
+      - ./db-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d embedded_widget"]
       interval: 5s

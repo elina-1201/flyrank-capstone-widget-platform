@@ -8,24 +8,42 @@ One proof per Section 6 requirement checkbox. Proofs are either an automated tes
 ```bash
 cp .env.example .env    # first run only
 docker compose up       # one command: Postgres + Mailpit + API (migrations apply on boot)
-docker compose run --rm api pnpm seed:prod   # demo owner + widget
+docker compose run --rm api pnpm seed:prod   # demo owner + widget (fixed ids — see capstone.yaml)
 pnpm test               # unit tests
-pnpm test:e2e           # e2e tests (needs Postgres)
+pnpm test:e2e           # e2e tests — serial; needs Postgres (docker compose up -d db)
 ```
 
-Test run summary (all suites, serial):
+The e2e database (`embedded_widget_test`) is created on the first boot of the Postgres
+volume by `db-init/01-create-test-db.sql` — no manual setup needed (volume predates the
+script? `docker compose down -v`, or create it by hand — see README).
+
+Verified from a clean slate (`docker compose down -v && docker compose up -d`):
+
+E2e suites — `test:e2e` ships serial:
 
 ```
 Test Suites: 6 passed, 6 total
 Tests:       45 passed, 45 total
 ```
 
-Unit tests:
+Unit tests (`pnpm test`):
 
 ```
 Test Suites: 2 passed, 2 total
 Tests:       6 passed, 6 total
 ```
+
+And `capstone.yaml`'s `test:` command, run as shipped:
+
+```
+$ pnpm install --frozen-lockfile && docker compose up -d --wait db && pnpm test:e2e
+ ✔ Container embedded-widget-db  Healthy
+Test Suites: 6 passed, 6 total
+Tests:       45 passed, 45 total
+```
+
+Live transcripts below carry the ids of the run that captured them; on a fresh seed the
+demo widget is `demoWidget01` (`00000000-0000-4000-8000-000000000001`).
 
 ---
 
@@ -70,11 +88,15 @@ PASS Widget delivery (e2e) embed snippet contains <script src="…/widget.v<vers
 PASS Widget delivery (e2e) embed snippet two widgets → two distinct publicIds
 ```
 
-**Live** — `pnpm seed` prints the snippet:
+**Live** — `pnpm seed` prints the snippet (fixed id, see `capstone.yaml`):
 
 ```
+$ docker compose run --rm api pnpm seed:prod
+Created owner demo@example.com (password: password123)
+Created demo widget
+
 Embed snippet:
-<script src="http://localhost:3000/widget.v1.js?id=zkqL7c6CBlSN"></script>
+<script src="http://localhost:3000/widget.v1.js?id=demoWidget01"></script>
 ```
 
 ---
@@ -101,17 +123,38 @@ PASS Widget delivery (e2e) versioned bundle old version keeps serving after a ne
 
 ### ✅ The widget renders on a page served from a different origin
 
-**Live** — the bundle is served with CORS and the config endpoint answers cross-origin:
+The shipped demo page — `customer-site/index.html` — embeds the widget with one
+`<script>` tag. Serve it from a second origin:
 
-```
-$ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/widget.v1.js
-200
-$ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/api/v1/public/widgets/zkqL7c6CBlSN/config
-200
+```bash
+python3 -m http.server 5500 --directory customer-site
 ```
 
-The customer page is a plain HTML file on a second origin (`http://localhost:5500`)
-containing the snippet; the bundle fetches config and renders the form into a `div`.
+**Live** — the page loads on `:5500`; the bundle + config come from `:3000` cross-origin:
+
+```
+$ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5500/
+200
+$ curl -s http://localhost:5500/ | grep -n DEFAULT_WIDGET_ID
+293:            var DEFAULT_WIDGET_ID = 'demoWidget01';
+
+$ curl -s -i -H 'Origin: http://localhost:5500' http://localhost:3000/api/v1/public/widgets/demoWidget01/config | head -7
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: http://localhost:5500
+Vary: Origin
+Cache-Control: public, max-age=60
+Content-Type: application/json; charset=utf-8
+Content-Length: 278
+```
+
+Verified in a browser: the form renders on `http://localhost:5500`, and submitting it
+stores a row (`browser-probe@example.com`) visible via the dashboard:
+
+```
+$ curl -s "http://localhost:3000/api/v1/widgets/00000000-0000-4000-8000-000000000001/submissions?perPage=5" -H "Authorization: Bearer $TOKEN"
+{ "data": [ { "id": "f1492340-…", "payload": { "name": "Browser check", "email": "browser-probe@example.com" }, … } ], "total": 2 }
+```
 
 ---
 
@@ -343,27 +386,33 @@ run + seed steps, the full API reference, trade-offs, and a limitations note.
 ### ✅ One command boots the system (Section 11: "a stranger can run it")
 
 `docker compose up` builds the API image and starts Postgres + Mailpit + the API; the
-API applies migrations on boot. Verified live:
+API applies migrations on boot. Verified live, starting from a clean slate
+(`docker compose down -v` first):
 
 ```
 $ docker compose up -d
- Container embedded-widget-db  Healthy
- Container embedded-widget-api  Started
+[+] Running 5/5
+ ✔ Network flyrank-capstone-widget-platform_default  Created
+ ✔ Volume "flyrank-capstone-widget-platform_pgdata"  Created
+ ✔ Container embedded-widget-mailpit                 Healthy
+ ✔ Container embedded-widget-db                      Healthy
+ ✔ Container embedded-widget-api                     Healthy
 
 $ docker compose ps
-NAME                    SERVICE   STATUS
-embedded-widget-api     api       Up (0.0.0.0:3000->3000/tcp)
-embedded-widget-db      db        Up (healthy)
-embedded-widget-mailpit mailpit   Up (healthy)
+NAME                      STATUS
+embedded-widget-api       Up 7 minutes
+embedded-widget-db        Up 7 minutes (healthy)
+embedded-widget-mailpit   Up 7 minutes (healthy)
 
 $ curl -s http://localhost:3000/health
 {"status":"ok","db":"ok"}
 
 $ docker compose run --rm api pnpm seed:prod
-Owner demo@example.com already exists — reusing it
-Demo widget already exists — reusing it
+Created owner demo@example.com (password: password123)
+Created demo widget
+
 Embed snippet:
-<script src="http://localhost:3000/widget.v1.js?id=zkqL7c6CBlSN"></script>
+<script src="http://localhost:3000/widget.v1.js?id=demoWidget01"></script>
 ```
 
 ---
@@ -466,3 +515,12 @@ assistant; see `BUILDLOG.md`.)
 | **4** — disable provider A → enriched by B; disable both → stored without geo | ✅ | `test/enrichment.e2e-spec.ts` (deterministic mock) |
 | **5** — force notifier to throw → submission still succeeds + stored | ✅ | `test/enrichment.e2e-spec.ts` |
 | **6** — fill honeypot → silently dropped/rejected | ✅ | Probe 6 transcript above |
+
+**Re-running the live probes.** Submissions are rate-limited per client IP (10/min,
+fixed 60 s window). Probe 3's burst deliberately exhausts the window for `127.0.0.1`,
+so probes that submit (4–6) are run with a distinct client: start the API with
+`TRUST_PROXY=1` (set it in `.env`, then `docker compose up -d api`) and send
+`X-Forwarded-For: 203.0.113.<n>` per request — otherwise a `429` only means "wait for
+the window to reset". The honeypot probe survives either way (checked before the
+limiter). A normal sweep of the `capstone.yaml` probes needs no special handling; its
+submission probe also carries an `X-Forwarded-For` header for the same purpose.

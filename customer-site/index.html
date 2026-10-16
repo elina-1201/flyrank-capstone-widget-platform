@@ -21,9 +21,9 @@
 
     Then open http://localhost:5500 — a different origin from the API on :3000.
 
-    The widget id defaults to the one `pnpm seed` creates. nanoid is random per seed
-    run, so on a fresh database replace DEFAULT_WIDGET_ID with the id printed by the
-    seed, or append ?id=<publicId> to the URL to point at any widget.
+    The widget id below is the fixed id of the widget `pnpm seed` creates
+    (demoWidget01), so this page works out of the box after seeding. Append
+    ?id=<publicId> to the URL to point at any other widget.
   -->
     <style>
         :root {
@@ -289,8 +289,8 @@
             var API_ORIGIN = 'http://localhost:3000';
             var BUNDLE_VERSION = 'v1';
 
-            // Matches the widget `pnpm seed` creates. Override with ?id=<publicId>.
-            var DEFAULT_WIDGET_ID = 'zkqL7c6CBlSN';
+            // Fixed id of the widget `pnpm seed` creates. Override with ?id=<publicId>.
+            var DEFAULT_WIDGET_ID = 'demoWidget01';
 
             var params = new URLSearchParams(window.location.search);
             var widgetId = params.get('id') || DEFAULT_WIDGET_ID;
